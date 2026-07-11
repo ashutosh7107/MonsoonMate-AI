@@ -70,8 +70,11 @@ export async function generatePlan(req: Request, res: Response): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Gemini failed.';
     console.error('Gemini error:', message);
+    const isKeyMissing = message.includes('not configured') || message.includes('API_KEY_INVALID') || message.includes('invalid api key');
     res.status(503).json({
-      error: 'AI service is temporarily unavailable. Please try again in a moment.',
+      error: isKeyMissing
+        ? 'Gemini API key is missing or invalid. Please set a valid GEMINI_API_KEY in your .env file (get one free at aistudio.google.com).'
+        : 'AI service is temporarily unavailable. Please try again in a moment.',
     });
     return;
   }

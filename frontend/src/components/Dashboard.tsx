@@ -1,13 +1,15 @@
 import { WeatherData, PreparednessPlan } from '../types';
 import { CloudRain, RefreshCw } from 'lucide-react';
-import { AlertBanner } from './cards/AlertBanner';
-import { WeatherCard } from './cards/WeatherCard';
-import { RiskCard } from './cards/RiskCard';
-import { ChecklistCard } from './cards/ChecklistCard';
-import { TravelAdvisoryCard } from './cards/TravelAdvisoryCard';
-import { RecommendationsCard } from './cards/RecommendationsCard';
-import { EmergencyContactsCard } from './cards/EmergencyContactsCard';
-import { TranslationCard } from './cards/TranslationCard';
+import {
+  AlertBanner,
+  WeatherCard,
+  RiskCard,
+  ChecklistCard,
+  TravelAdvisoryCard,
+  RecommendationsCard,
+  EmergencyContactsCard,
+  TranslationCard
+} from './cards';
 
 interface DashboardProps {
   weather: WeatherData;

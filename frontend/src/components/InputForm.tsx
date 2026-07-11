@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { CloudRain, ArrowLeft, Users, Car, Heart, MapPin, Languages, ChevronDown, Send } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { CloudRain, ArrowLeft, Users, Car, Heart, MapPin, Languages, ChevronDown, Send, Loader2 } from 'lucide-react';
 import { UserInput } from '../types';
 
 interface InputFormProps {
@@ -104,6 +104,127 @@ function RadioGroup({ label, options, value, onChange }: RadioGroupProps) {
   );
 }
 
+interface CitySuggestion {
+  name: string;
+  admin1?: string;
+  country: string;
+  country_code: string;
+}
+
+function CityAutocomplete({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (city: string) => void;
+}) {
+  const [query, setQuery] = useState(value);
+  const [suggestions, setSuggestions] = useState<CitySuggestion[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const fetchSuggestions = useCallback(async (q: string) => {
+    if (q.trim().length < 2) {
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=en&format=json`
+      );
+      const data = await res.json();
+      const results: CitySuggestion[] = (data.results ?? []).map(
+        (r: { name: string; admin1?: string; country: string; country_code: string }) => ({
+          name: r.name,
+          admin1: r.admin1,
+          country: r.country,
+          country_code: r.country_code,
+        })
+      );
+      setSuggestions(results);
+      setOpen(results.length > 0);
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setQuery(val);
+    onChange(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchSuggestions(val), 300);
+  };
+
+  const handleSelect = (s: CitySuggestion) => {
+    const city = s.admin1 ? `${s.name}, ${s.admin1}` : s.name;
+    setQuery(city);
+    onChange(city);
+    setSuggestions([]);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <div className="relative">
+        <input
+          type="text"
+          className="input-field pr-10"
+          placeholder="e.g. Mumbai, Delhi, Bangalore, Chennai"
+          value={query}
+          onChange={handleChange}
+          onFocus={() => suggestions.length > 0 && setOpen(true)}
+          autoComplete="off"
+          required
+        />
+        {loading && (
+          <Loader2 className="absolute right-3 top-3.5 w-4 h-4 text-slate-400 animate-spin" />
+        )}
+      </div>
+
+      {open && suggestions.length > 0 && (
+        <ul className="absolute z-50 w-full mt-1 rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur-md shadow-xl overflow-hidden">
+          {suggestions.map((s, i) => (
+            <li key={i}>
+              <button
+                type="button"
+                className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
+                onClick={() => handleSelect(s)}
+              >
+                <MapPin className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                <span>
+                  <span className="text-white text-sm font-medium">{s.name}</span>
+                  {s.admin1 && (
+                    <span className="text-slate-400 text-sm">, {s.admin1}</span>
+                  )}
+                  <span className="text-slate-500 text-xs ml-1">· {s.country}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function InputForm({ onSubmit, onBack, error, loading }: InputFormProps) {
   const [input, setInput] = useState<UserInput>(defaultInput);
   const [formError, setFormError] = useState<string>('');
@@ -154,15 +275,11 @@ export function InputForm({ onSubmit, onBack, error, loading }: InputFormProps) 
         <FormSection icon={<MapPin className="w-4 h-4 text-blue-400" />} title="Location">
           <div>
             <label className="label">City *</label>
-            <input
-              type="text"
-              className="input-field"
-              placeholder="e.g. Mumbai, Delhi, Bangalore, Chennai"
+            <CityAutocomplete
               value={input.city}
-              onChange={(e) => update('city', e.target.value)}
-              required
+              onChange={(city) => update('city', city)}
             />
-            <p className="text-xs text-slate-500 mt-1.5">Enter the city for which you want the monsoon plan</p>
+            <p className="text-xs text-slate-500 mt-1.5">Start typing to search for your city</p>
           </div>
         </FormSection>
 

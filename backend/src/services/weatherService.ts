@@ -1,73 +1,11 @@
 import axios from 'axios';
 import { WeatherData } from '../types';
 
-const OPENWEATHER_API_KEY = process.env.WEATHER_API_KEY;
-const OPENWEATHER_BASE = 'https://api.openweathermap.org/data/2.5';
-
 /**
- * Fetches live weather data for a given city using OpenWeatherMap API.
- * Falls back to Open-Meteo (free, no key required) if OpenWeatherMap fails.
+ * Fetches live weather data for a given city using Open-Meteo (free, no API key required).
+ * Uses the Open-Meteo Geocoding API to resolve city names to coordinates.
  */
 export async function fetchWeatherData(city: string): Promise<WeatherData> {
-  if (OPENWEATHER_API_KEY) {
-    try {
-      return await fetchFromOpenWeatherMap(city);
-    } catch (err) {
-      console.warn('OpenWeatherMap failed, falling back to Open-Meteo:', err);
-    }
-  }
-  return await fetchFromOpenMeteo(city);
-}
-
-async function fetchFromOpenWeatherMap(city: string): Promise<WeatherData> {
-  const weatherRes = await axios.get(`${OPENWEATHER_BASE}/weather`, {
-    params: {
-      q: city,
-      appid: OPENWEATHER_API_KEY,
-      units: 'metric',
-    },
-    timeout: 8000,
-  });
-
-  const data = weatherRes.data;
-
-  // Try to get weather alerts from OneCall API (requires geocoordinates)
-  let alerts: string[] = [];
-  try {
-    const alertRes = await axios.get(`${OPENWEATHER_BASE}/onecall`, {
-      params: {
-        lat: data.coord.lat,
-        lon: data.coord.lon,
-        appid: OPENWEATHER_API_KEY,
-        exclude: 'minutely,hourly,daily',
-        units: 'metric',
-      },
-      timeout: 8000,
-    });
-    if (alertRes.data.alerts) {
-      alerts = alertRes.data.alerts.map((a: { description: string }) => a.description);
-    }
-  } catch {
-    // Alerts are optional; continue without them
-  }
-
-  const rain1h = data.rain?.['1h'] ?? 0;
-
-  return {
-    city: `${data.name}, ${data.sys.country}`,
-    temperature: Math.round(data.main.temp),
-    humidity: data.main.humidity,
-    condition: data.weather[0].main,
-    description: data.weather[0].description,
-    windSpeed: Math.round(data.wind.speed * 3.6), // m/s to km/h
-    rainfall: rain1h,
-    feelsLike: Math.round(data.main.feels_like),
-    alerts,
-    icon: data.weather[0].icon,
-  };
-}
-
-async function fetchFromOpenMeteo(city: string): Promise<WeatherData> {
   // Step 1: Geocode city name to coordinates
   const geoRes = await axios.get('https://geocoding-api.open-meteo.com/v1/search', {
     params: { name: city, count: 1, language: 'en', format: 'json' },
