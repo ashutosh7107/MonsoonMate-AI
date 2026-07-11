@@ -174,9 +174,11 @@ function CityAutocomplete({
   };
 
   const handleSelect = (s: CitySuggestion) => {
-    const city = s.admin1 ? `${s.name}, ${s.admin1}` : s.name;
-    setQuery(city);
-    onChange(city);
+    // Show full label in the input (e.g. "Bengaluru, Karnataka, India")
+    // but only send the bare city name to the backend for geocoding
+    const displayLabel = [s.name, s.admin1, s.country].filter(Boolean).join(', ');
+    setQuery(displayLabel);
+    onChange(s.name);  // geocoding API needs just the city name
     setSuggestions([]);
     setOpen(false);
   };

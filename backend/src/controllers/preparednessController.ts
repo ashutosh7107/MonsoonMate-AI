@@ -68,13 +68,16 @@ export async function generatePlan(req: Request, res: Response): Promise<void> {
   try {
     plan = await generatePreparednessPlan(userInput, weather);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Gemini failed.';
-    console.error('Gemini error:', message);
-    const isKeyMissing = message.includes('not configured') || message.includes('API_KEY_INVALID') || message.includes('invalid api key');
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('Gemini error details:', message);
+    const isKeyMissing = message.includes('not configured') || message.includes('API_KEY_INVALID') || message.includes('invalid api key') || message.includes('API key not valid');
+    const isRateLimit = message.includes('429') || message.includes('quota') || message.includes('rate');
     res.status(503).json({
       error: isKeyMissing
-        ? 'Gemini API key is missing or invalid. Please set a valid GEMINI_API_KEY in your .env file (get one free at aistudio.google.com).'
-        : 'AI service is temporarily unavailable. Please try again in a moment.',
+        ? 'Gemini API key is missing or invalid. Get a free key at aistudio.google.com/app/apikey and set it in your .env file.'
+        : isRateLimit
+        ? 'Gemini rate limit reached. Please wait a moment and try again.'
+        : `AI service error: ${message}`,
     });
     return;
   }
